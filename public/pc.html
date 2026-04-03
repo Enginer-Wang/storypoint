@@ -807,6 +807,8 @@
         document.getElementById("resultsSection").classList.remove("active");
         document.getElementById("storyInput").value = "";
         document.getElementById("participantsList").innerHTML = '';
+        document.getElementById("finalPointsInput").value = "";
+        document.getElementById("hoursInput").value = "";
         setStatus("Ready", false);
         if (ws) ws.close();
       }
