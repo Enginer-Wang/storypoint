@@ -250,7 +250,7 @@ router.post(
   "/api/session/:sessionId/update-final",
   async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { finalPoints, hours } = req.body;
+    const { finalPoints, hours, feFinal, beFinal, qaFinal } = req.body;
 
     const session = sessions.get(sessionId);
     if (!session) {
@@ -258,12 +258,15 @@ router.post(
     }
 
     // 更新数据库中的最终点数和工作时间
-    await db.updateFinalResult(sessionId, finalPoints, hours);
+    await db.updateFinalResult(sessionId, finalPoints, hours, feFinal || 0, beFinal || 0, qaFinal || 0);
 
     res.json({
       success: true,
       sessionId,
       finalPoints,
+      feFinal,
+      beFinal,
+      qaFinal,
       hours,
     });
   }

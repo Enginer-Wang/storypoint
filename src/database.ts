@@ -93,6 +93,16 @@ export const db = {
     for (const sql of tables) {
       await runAsync(dbInstance, sql);
     }
+
+    // 添加 per-role final 列（已有表时安全添加）
+    const alterCols = [
+      "ALTER TABLE results ADD COLUMN fe_final INTEGER DEFAULT 0",
+      "ALTER TABLE results ADD COLUMN be_final INTEGER DEFAULT 0",
+      "ALTER TABLE results ADD COLUMN qa_final INTEGER DEFAULT 0",
+    ];
+    for (const sql of alterCols) {
+      try { await runAsync(dbInstance, sql); } catch (_) { /* column already exists */ }
+    }
   },
 
   async saveSession(
@@ -158,16 +168,19 @@ export const db = {
   async updateFinalResult(
     sessionId: string,
     finalPoints: number,
-    hours: number
+    hours: number,
+    feFinal: number = 0,
+    beFinal: number = 0,
+    qaFinal: number = 0
   ): Promise<void> {
     if (!dbInstance) throw new Error("Database not connected");
 
     const sql = `
       UPDATE results
-      SET final_points = ?, hours = ?
+      SET final_points = ?, hours = ?, fe_final = ?, be_final = ?, qa_final = ?
       WHERE session_id = ?
     `;
-    await runAsync(dbInstance, sql, [finalPoints, hours, sessionId]);
+    await runAsync(dbInstance, sql, [finalPoints, hours, feFinal, beFinal, qaFinal, sessionId]);
   },
 
   async getHistory(): Promise<any[]> {
@@ -227,6 +240,9 @@ export const db = {
       sessionId: result.session_id,
       storyId: result.story_id,
       finalPoints: result.final_points,
+      feFinal: result.fe_final || 0,
+      beFinal: result.be_final || 0,
+      qaFinal: result.qa_final || 0,
       hours: result.hours,
       createdAt: result.created_at,
       roleStats,

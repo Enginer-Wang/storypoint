@@ -772,12 +772,15 @@
       function saveFinalDecision() {
         const fp = parseInt(document.getElementById("finalPointsInput").value);
         const hrs = parseFloat(document.getElementById("hoursInput").value);
+        const feFinal = parseInt(document.getElementById("drInput_FE")?.value) || 0;
+        const beFinal = parseInt(document.getElementById("drInput_BE")?.value) || 0;
+        const qaFinal = parseInt(document.getElementById("drInput_QA")?.value) || 0;
         if (!fp && fp !== 0) { alert("Please enter final points"); return; }
 
         fetch(`/api/session/${currentSession.sessionId}/update-final`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ finalPoints: fp, hours: hrs || 0 }),
+          body: JSON.stringify({ finalPoints: fp, hours: hrs || 0, feFinal, beFinal, qaFinal }),
         })
           .then(r => r.json())
           .then(() => {
@@ -887,17 +890,19 @@
             const cnt = persons.length;
             const av = cnt > 0 ? (grandTotal / cnt).toFixed(1) : 0;
 
-            // Role Breakdown - 只显示四舍五入后的 Average，不显示 avg
+            // Role Breakdown - 优先用 Final Decision 的 per-role 值
+            const roleFinals = { FE: data.feFinal || 0, BE: data.beFinal || 0, QA: data.qaFinal || 0 };
             let roleHtml = '';
             ['FE','BE','QA'].forEach(role => {
               const rs = data.roleStats[role];
               const roleKey = role;
               const membersWithRole = persons.filter(p => p[roleKey] > 0);
-              const roundAvg = rs.points.length > 0 ? Math.round(rs.average) : '\u2014';
+              // 优先 Final Decision 值，否则用四舍五入的 avg
+              const displayVal = roleFinals[role] > 0 ? roleFinals[role] : (rs.points.length > 0 ? Math.round(rs.average) : '\u2014');
               const mbody = membersWithRole.length === 0
                 ? '<div class="h-rs-empty">\u2014</div>'
                 : membersWithRole.map(m => `<div class="h-rs-row"><span class="h-rs-row-name">${m.name}</span><span class="h-rs-row-pts">${m[roleKey]}</span></div>`).join('');
-              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${rs.points.length})</span><span class="h-rs-avg">${roundAvg}</span></div><div class="h-rs-body">${mbody}</div></div>`;
+              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${rs.points.length})</span><span class="h-rs-avg">${displayVal}</span></div><div class="h-rs-body">${mbody}</div></div>`;
             });
 
             body.innerHTML = `<div class="h-detail">
