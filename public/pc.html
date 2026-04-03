@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Story Point Estimation</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: #f4f6f9;
+        min-height: 100vh;
+        color: #333;
+      }
+
+      /* ===== 导航栏 ===== */
+      .navbar {
+        background: #182954;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #fff;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: .5px;
+      }
+      .navbar-brand svg { flex-shrink: 0; }
+      .navbar-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: rgba(255,255,255,.85);
+        font-size: 13px;
+      }
+      .status-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #4caf50;
+      }
+      .status-dot.idle { background: #ff9800; }
+
+      /* ===== 主体区域 ===== */
+      .main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 32px 24px;
+      }
+
+      .section-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #182954;
+        margin-bottom: 20px;
+      }
+
+      /* ===== 卡片 ===== */
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.08);
+        padding: 28px 32px;
+        margin-bottom: 20px;
+      }
+
+      /* ===== 表单 ===== */
+      .form-row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      .form-label {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 6px;
+        font-weight: 500;
+      }
+      .form-input {
+        flex: 1;
+        height: 40px;
+        padding: 0 14px;
+        border: 1px solid #d0d5dd;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #333;
+        background: #fff;
+        transition: border-color .2s;
+      }
+      .form-input:focus {
+        outline: none;
+        border-color: #182954;
+        box-shadow: 0 0 0 3px rgba(24,41,84,.1);
+      }
+
+      /* ===== 按钮 ===== */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .2s, box-shadow .2s;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background: #182954;
+        color: #fff;
+      }
+      .btn-primary:hover { background: #1e3469; box-shadow: 0 2px 8px rgba(24,41,84,.25); }
+      .btn-secondary {
+        background: #fff;
+        color: #182954;
+        border: 1px solid #d0d5dd;
+      }
+      .btn-secondary:hover { background: #f4f6f9; }
+      .btn-success {
+        background: #16a34a;
+        color: #fff;
+      }
+      .btn-success:hover { background: #15803d; }
+      .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+      /* ===== 二维码区域 ===== */
+      .qr-area {
+        display: flex;
+        align-items: flex-start;
+        gap: 32px;
+        margin-top: 24px;
+      }
+      .qr-box {
+        flex-shrink: 0;
+        padding: 12px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+      }
+      .qr-box img { display: block; width: 200px; height: 200px; }
+      .qr-hint {
+        font-size: 13px;
+        color: #666;
+        margin-top: 8px;
+        text-align: center;
+      }
+      .qr-right { flex: 1; }
+
+      /* ===== 参与者 ===== */
+      .participant-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 12px;
+      }
+      .p-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: 6px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+      }
+      .p-avatar {
+        width: 36px; height: 36px;
+        border-radius: 50%;
+        background: #182954;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .p-avatar.fe { background: #2563eb; }
+      .p-avatar.be { background: #7c3aed; }
+      .p-avatar.qa { background: #0d9488; }
+      .p-info { flex: 1; min-width: 0; }
+      .p-name { font-size: 14px; font-weight: 600; color: #333; }
+      .p-role { font-size: 12px; color: #888; margin-top: 2px; }
+      .p-pts {
+        font-size: 18px;
+        font-weight: 700;
+        color: #182954;
+        min-width: 30px;
+        text-align: right;
+      }
+
+      .empty-state {
+        padding: 40px 0;
+        text-align: center;
+        color: #999;
+        font-size: 14px;
+      }
+      .empty-state svg { margin-bottom: 12px; }
+
+      /* ===== 操作栏 ===== */
+      .actions-bar {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 24px;
+      }
+
+      /* ===== 结果区域 ===== */
+      .results-section { display: none; }
+      .results-section.active { display: block; }
+
+      .stat-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .stat-card {
+        background: #182954;
+        color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .stat-label { font-size: 12px; opacity: .8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+      .stat-value { font-size: 28px; font-weight: 700; }
+
+      .final-box {
+        margin-top: 20px;
+        padding: 24px;
+        background: #f0f4ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .final-label { font-size: 13px; color: #666; margin-bottom: 8px; }
+      .final-value { font-size: 44px; font-weight: 700; color: #182954; }
+
+      .decision-form {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+      }
+      .decision-form .form-row { margin-top: 12px; }
+      .decision-title { font-size: 14px; font-weight: 600; color: #333; }
+
+      /* ===== 隐藏区域 ===== */
+      .hidden { display: none !important; }
+
+      /* ===== 表格 ===== */
+      .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+      .result-table th {
+        background: #f9fafb;
+        text-align: left;
+        padding: 10px 16px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .result-table td {
+        padding: 12px 16px;
+        font-size: 14px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .result-table tr:last-child td { border-bottom: none; }
+      .role-tag {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .role-tag.fe { background: #dbeafe; color: #2563eb; }
+      .role-tag.be { background: #ede9fe; color: #7c3aed; }
+      .role-tag.qa { background: #ccfbf1; color: #0d9488; }
+
+      .result-table tfoot td {
+        background: #f9fafb;
+        font-weight: 700;
+        border-top: 2px solid #e5e7eb;
+        color: #182954;
+      }
+
+      /* ===== Role Breakdown ===== */
+      .role-breakdown {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .rb-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0,0,0,.08);
+        overflow: hidden;
+      }
+      .rb-header {
+        padding: 14px 16px;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .rb-header.fe, .rb-header.be, .rb-header.qa { background: #182954; }
+      .rb-header-avg {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .rb-body { padding: 0; }
+      .rb-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 16px;
+        font-size: 13px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      .rb-row:last-child { border-bottom: none; }
+      .rb-row-name { color: #555; }
+      .rb-row-pts { font-weight: 700; color: #182954; font-size: 15px; }
+      .rb-empty {
+        padding: 16px;
+        text-align: center;
+        color: #ccc;
+        font-size: 13px;
+      }
+
+      /* ===== Decision Role Editable ===== */
+      .decision-role-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-top: 16px;
+        margin-bottom: 16px;
+      }
+      .dr-card {
+        background: #182954;
+        color: #fff;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+      }
+      .dr-label { font-size: 11px; opacity: .8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+      .dr-input {
+        width: 80px;
+        height: 36px;
+        border: 2px solid rgba(255,255,255,.3);
+        border-radius: 6px;
+        background: rgba(255,255,255,.15);
+        color: #fff;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: center;
+        outline: none;
+        transition: border-color .2s;
+      }
+      .dr-input:focus { border-color: #fff; background: rgba(255,255,255,.25); }
+      .dr-input::placeholder { color: rgba(255,255,255,.4); }
+      .dr-sub { font-size: 11px; opacity: .65; margin-top: 4px; }
+      .dr-total-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 16px;
+        background: #f0f4ff;
+        border: 1px solid #c7d2fe;
+        border-radius: 8px;
+      }
+      .dr-total-label { font-size: 13px; color: #666; font-weight: 600; }
+      .dr-total-value { font-size: 32px; font-weight: 700; color: #182954; }
+
+      /* ===== History ===== */
+      .navbar-actions { display: flex; align-items: center; gap: 16px; }
+      .nav-btn {
+        display: flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+        color: #fff; height: 32px; padding: 0 14px; border-radius: 5px;
+        font-size: 13px; font-weight: 500; cursor: pointer; transition: background .2s;
+      }
+      .nav-btn:hover { background: rgba(255,255,255,.22); }
+      .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 200; display: none; }
+      .overlay.open { display: block; }
+      .history-panel {
+        position: fixed; top: 0; right: -480px; width: 460px; max-width: 90vw;
+        height: 100vh; background: #fff; z-index: 210;
+        box-shadow: -4px 0 20px rgba(0,0,0,.12); display: flex;
+        flex-direction: column; transition: right .3s ease;
+      }
+      .history-panel.open { right: 0; }
+      .hp-header {
+        height: 56px; background: #182954; color: #fff;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 20px; flex-shrink: 0;
+      }
+      .hp-header-title { font-size: 15px; font-weight: 600; }
+      .hp-close { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; }
+      .hp-body { flex: 1; overflow-y: auto; }
+      .h-item {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px 20px; border-bottom: 1px solid #f0f0f0;
+        cursor: pointer; transition: background .15s;
+      }
+      .h-item:hover { background: #f9fafb; }
+      .h-item-pts {
+        width: 44px; height: 44px; border-radius: 8px; background: #182954;
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-size: 18px; font-weight: 700; flex-shrink: 0;
+      }
+      .h-item-info { flex: 1; min-width: 0; }
+      .h-item-story { font-size: 14px; font-weight: 600; color: #333; }
+      .h-item-meta { font-size: 12px; color: #999; margin-top: 3px; }
+      .h-item-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+      .h-item-arrow { color: #ccc; }
+      .h-del-btn {
+        background: none; border: none; color: #ccc; cursor: pointer;
+        padding: 4px; border-radius: 4px; display: flex; align-items: center;
+        transition: color .2s, background .2s;
+      }
+      .h-del-btn:hover { color: #dc2626; background: #fef2f2; }
+      .h-empty { padding: 60px 20px; text-align: center; color: #999; font-size: 14px; }
+      .h-detail { padding: 20px; }
+      .h-back {
+        display: inline-flex; align-items: center; gap: 4px;
+        font-size: 13px; color: #182954; font-weight: 600;
+        cursor: pointer; margin-bottom: 16px; background: none; border: none;
+      }
+      .h-back:hover { text-decoration: underline; }
+      .h-detail-header {
+        background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px;
+        padding: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 16px;
+      }
+      .h-detail-pts {
+        width: 56px; height: 56px; border-radius: 10px; background: #182954;
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 700; flex-shrink: 0;
+      }
+      .h-detail-story { font-size: 16px; font-weight: 700; color: #182954; }
+      .h-detail-meta { font-size: 12px; color: #888; margin-top: 4px; }
+      .h-detail .result-table { margin-top: 0; }
+      .h-detail .result-table th { font-size: 11px; padding: 8px 12px; }
+      .h-detail .result-table td { padding: 10px 12px; font-size: 13px; }
+      .h-role-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+      .h-rs-card { border-radius: 8px; overflow: hidden; }
+      .h-rs-head {
+        padding: 10px 12px; color: #fff; font-size: 12px; font-weight: 600;
+        display: flex; justify-content: space-between; background: #182954;
+      }
+      .h-rs-avg { font-size: 16px; font-weight: 700; }
+      .h-rs-body { background: #f9fafb; padding: 6px 0; }
+      .h-rs-row { display: flex; justify-content: space-between; padding: 5px 12px; font-size: 12px; }
+      .h-rs-row-name { color: #666; }
+      .h-rs-row-pts { font-weight: 700; color: #182954; }
+      .h-rs-empty { padding: 10px 12px; text-align: center; color: #ccc; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+
+    <!-- 导航栏 -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+        Story Point Estimation
+      </div>
+      <div class="navbar-actions">
+        <button class="nav-btn" onclick="toggleHistory()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          History
+        </button>
+        <div class="navbar-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Ready</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- History -->
+    <div class="overlay" id="historyOverlay" onclick="toggleHistory()"></div>
+    <div class="history-panel" id="historyPanel">
+      <div class="hp-header">
+        <span class="hp-header-title">Estimation History</span>
+        <button class="hp-close" onclick="toggleHistory()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="hp-body" id="historyBody"><div class="h-empty">Loading...</div></div>
+    </div>
+
+    <div class="main">
+
+      <!-- 创建会话 -->
+      <div id="setupSection">
+        <div class="section-title">New Estimation Session</div>
+        <div class="card">
+          <div class="form-label">Story ID</div>
+          <div class="form-row">
+            <input class="form-input" type="text" id="storyInput" placeholder="e.g. STORY-001" />
+            <button class="btn btn-primary" onclick="startSession()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>
+              Start
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 会话进行中 -->
+      <div id="sessionSection" class="hidden">
+        <div class="section-title">Session Active &mdash; <span id="currentStory" style="color:#2563eb"></span></div>
+        <div class="card">
+          <div class="qr-area">
+            <div>
+              <div class="qr-box"><img id="qrCode" alt="QR" /></div>
+              <div class="qr-hint">Scan to join</div>
+            </div>
+            <div class="qr-right">
+              <div class="form-label" style="margin-bottom:12px">Participants</div>
+              <div id="participantsList" class="participant-grid">
+                <div class="empty-state">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <div>Waiting for participants...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="actions-bar">
+            <button class="btn btn-secondary" onclick="resetSession()">Cancel</button>
+            <button class="btn btn-success" onclick="finalizeSession()">Reveal Results</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 结果展示 -->
+      <div id="resultsSection" class="results-section">
+        <div class="section-title">Estimation Results &mdash; <span id="resultStory" style="color:#2563eb"></span></div>
+
+        <div class="card">
+          <div class="form-label">Individual Scores</div>
+          <table class="result-table">
+            <thead><tr><th>Name</th><th>Role</th><th style="text-align:right">Points</th></tr></thead>
+            <tbody id="participantResults"></tbody>
+            <tfoot id="participantTotal"></tfoot>
+          </table>
+        </div>
+
+        <div class="form-label" style="margin-top:24px;margin-bottom:0">Role Breakdown</div>
+        <div class="role-breakdown" id="roleBreakdown"></div>
+
+        <div class="stat-row" id="roleStats"></div>
+
+        <div class="card" style="margin-top:20px">
+          <div class="decision-title">Final Decision</div>
+          <div class="decision-role-row" id="decisionRoleRow"></div>
+          <div class="dr-total-row">
+            <span class="dr-total-label">Total Points:</span>
+            <span class="dr-total-value" id="drTotalValue">0</span>
+          </div>
+          <div class="decision-form">
+            <div class="form-row">
+              <input class="form-input" type="number" id="finalPointsInput" placeholder="Final total (auto-calculated)" min="0" max="999" />
+              <input class="form-input" type="number" id="hoursInput" placeholder="Estimated hours (h)" step="0.5" min="0" />
+              <button class="btn btn-primary" onclick="saveFinalDecision()">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="actions-bar">
+          <button class="btn btn-secondary" onclick="resetSession()">New Session</button>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      let currentSession = null;
+      let ws = null;
+
+      function setStatus(text, active) {
+        document.getElementById("statusText").textContent = text;
+        document.getElementById("statusDot").className = active ? "status-dot" : "status-dot idle";
+      }
+
+      function startSession() {
+        const storyId = document.getElementById("storyInput").value.trim();
+        if (!storyId) { alert("Please enter a Story ID"); return; }
+
+        fetch("/api/session/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ storyId }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            currentSession = data;
+            document.getElementById("setupSection").classList.add("hidden");
+            document.getElementById("sessionSection").classList.remove("hidden");
+            document.getElementById("qrCode").src = data.qrCode;
+            document.getElementById("currentStory").textContent = storyId;
+            setStatus("Session Active", true);
+            connectWebSocket(data.sessionId);
+            updateParticipants(data.sessionId);
+            setInterval(() => updateParticipants(data.sessionId), 2000);
+          })
+          .catch(() => alert("Failed to create session"));
+      }
+
+      function connectWebSocket(sessionId) {
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        ws = new WebSocket(`${proto}://${location.host}`);
+        ws.onopen = () => { ws.send(JSON.stringify({ type: "join", sessionId, role: "admin" })); };
+        ws.onmessage = (e) => {
+          const d = JSON.parse(e.data);
+          if (d.type === "participant-joined" || d.type === "participant-submitted") {
+            updateParticipants(sessionId);
+          }
+        };
+      }
+
+      function updateParticipants(sid) {
+        fetch(`/api/session/${sid}`)
+          .then(r => r.json())
+          .then(data => {
+            const list = document.getElementById("participantsList");
+            if (data.participants.length === 0) {
+              list.innerHTML = '<div class="empty-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><div>Waiting for participants...</div></div>';
+              return;
+            }
+            list.innerHTML = "";
+            data.participants.forEach(p => {
+              const r = p.role.toLowerCase();
+              const initials = p.name.charAt(0).toUpperCase();
+              list.innerHTML += `
+                <div class="p-card">
+                  <div class="p-avatar ${r}">${initials}</div>
+                  <div class="p-info">
+                    <div class="p-name">${p.name}</div>
+                    <div class="p-role">${p.role}</div>
+                  </div>
+                  <div class="p-pts">${p.totalPoints || "—"}</div>
+                </div>`;
+            });
+          });
+      }
+
+      function finalizeSession() {
+        if (!currentSession) return;
+        fetch(`/api/session/${currentSession.sessionId}/finalize`, { method: "POST" })
+          .then(r => r.json())
+          .then(data => { displayResults(data); })
+          .catch(() => alert("Failed to finalize"));
+      }
+
+      function displayResults(data) {
+        document.getElementById("sessionSection").classList.add("hidden");
+        document.getElementById("resultsSection").classList.add("active");
+        document.getElementById("resultStory").textContent = data.storyId;
+        setStatus("Results", false);
+
+        // === Individual Scores Table ===
+        const tbody = document.getElementById("participantResults");
+        tbody.innerHTML = "";
+        let grandTotal = 0;
+        data.participantDetails.forEach(p => {
+          const r = p.role.toLowerCase();
+          grandTotal += p.points;
+          tbody.innerHTML += `<tr>
+            <td><strong>${p.name}</strong></td>
+            <td><span class="role-tag ${r}">${p.role}</span></td>
+            <td style="text-align:right;font-weight:700;color:#182954">${p.points}</td>
+          </tr>`;
+        });
+
+        const tfoot = document.getElementById("participantTotal");
+        const count = data.participantDetails.length;
+        const avg = count > 0 ? (grandTotal / count).toFixed(1) : 0;
+        tfoot.innerHTML = `<tr>
+          <td>Total / Average</td>
+          <td><span style="font-size:12px;color:#888">${count} participants</span></td>
+          <td style="text-align:right">${grandTotal} <span style="font-size:12px;font-weight:400;color:#888">/ avg ${avg}</span></td>
+        </tr>`;
+
+        // === Role Breakdown Cards ===
+        const rbDiv = document.getElementById("roleBreakdown");
+        rbDiv.innerHTML = "";
+        ["FE", "BE", "QA"].forEach(role => {
+          const rs = data.roleStats[role];
+          const members = data.participantDetails.filter(p => p.role === role);
+          const roleAvg = rs.points.length > 0 ? rs.average.toFixed(1) : "\u2014";
+
+          let membersHtml = "";
+          if (members.length === 0) {
+            membersHtml = '<div class="rb-empty">No participants</div>';
+          } else {
+            membersHtml = members.map(m => `<div class="rb-row"><span class="rb-row-name">${m.name}</span><span class="rb-row-pts">${m.points}</span></div>`).join("");
+          }
+
+          rbDiv.innerHTML += `<div class="rb-card">
+            <div class="rb-header ${role.toLowerCase()}">
+              <span>${role} (${members.length})</span>
+              <span class="rb-header-avg">avg ${roleAvg}</span>
+            </div>
+            <div class="rb-body">${membersHtml}</div>
+          </div>`;
+        });
+
+        // === Stat Cards ===
+        const statsDiv = document.getElementById("roleStats");
+        statsDiv.innerHTML = "";
+        Object.entries(data.roleStats).forEach(([role, stats]) => {
+          if (stats.points.length > 0) {
+            const sum = stats.points.reduce((a, b) => a + b, 0);
+            statsDiv.innerHTML += `<div class="stat-card">
+              <div class="stat-label">${role} Average</div>
+              <div class="stat-value">${Math.round(stats.average)}</div>
+              <div style="font-size:11px;opacity:.7;margin-top:4px">Sum ${sum} / ${stats.points.length} people</div>
+            </div>`;
+          }
+        });
+
+        // === Decision: Editable Role Inputs ===
+        const drDiv = document.getElementById("decisionRoleRow");
+        drDiv.innerHTML = "";
+        ["FE", "BE", "QA"].forEach(role => {
+          const rs = data.roleStats[role];
+          const cnt = rs.points.length;
+          const roleAvg = cnt > 0 ? Math.round(rs.average) : 0;
+          drDiv.innerHTML += `<div class="dr-card">
+            <div class="dr-label">${role}</div>
+            <input class="dr-input" type="number" id="drInput_${role}" value="${roleAvg}" min="0" max="100" onblur="recalcTotal()" onkeyup="recalcTotal()" />
+            <div class="dr-sub">${cnt > 0 ? cnt + ' people / avg ' + rs.average.toFixed(1) : 'no data'}</div>
+          </div>`;
+        });
+        recalcTotal();
+      }
+
+      function recalcTotal() {
+        let total = 0;
+        ["FE", "BE", "QA"].forEach(role => {
+          const el = document.getElementById("drInput_" + role);
+          if (el) total += parseFloat(el.value) || 0;
+        });
+        document.getElementById("drTotalValue").textContent = total;
+        document.getElementById("finalPointsInput").value = total;
+      }
+
+      function saveFinalDecision() {
+        const fp = parseInt(document.getElementById("finalPointsInput").value);
+        const hrs = parseFloat(document.getElementById("hoursInput").value);
+        if (!fp && fp !== 0) { alert("Please enter final points"); return; }
+
+        fetch(`/api/session/${currentSession.sessionId}/update-final`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ finalPoints: fp, hours: hrs || 0 }),
+        })
+          .then(r => r.json())
+          .then(() => alert("Decision saved"))
+          .catch(() => alert("Failed to save"));
+      }
+
+      function resetSession() {
+        currentSession = null;
+        document.getElementById("setupSection").classList.remove("hidden");
+        document.getElementById("sessionSection").classList.add("hidden");
+        document.getElementById("resultsSection").classList.remove("active");
+        document.getElementById("storyInput").value = "";
+        setStatus("Ready", false);
+        if (ws) ws.close();
+      }
+
+      // ===== History =====
+      let historyOpen = false;
+
+      function toggleHistory() {
+        historyOpen = !historyOpen;
+        document.getElementById("historyOverlay").classList.toggle("open", historyOpen);
+        document.getElementById("historyPanel").classList.toggle("open", historyOpen);
+        if (historyOpen) loadHistory();
+      }
+
+      function loadHistory() {
+        const body = document.getElementById("historyBody");
+        body.innerHTML = '<div class="h-empty">Loading...</div>';
+        fetch("/api/history")
+          .then(r => r.json())
+          .then(list => {
+            if (!list.length) { body.innerHTML = '<div class="h-empty">No history records yet.</div>'; return; }
+            body.innerHTML = list.map(item => {
+              const d = item.created_at ? new Date(item.created_at).toLocaleString() : '';
+              const hrs = item.hours ? ` / ${item.hours}h` : '';
+              return `<div class="h-item">
+                <div class="h-item-pts" onclick="loadHistoryDetail('${item.session_id}')">${item.final_points ?? '\u2014'}</div>
+                <div class="h-item-info" onclick="loadHistoryDetail('${item.session_id}')">
+                  <div class="h-item-story">${item.story_id}</div>
+                  <div class="h-item-meta">${d}${hrs}</div>
+                </div>
+                <div class="h-item-actions">
+                  <button class="h-del-btn" title="Delete" onclick="event.stopPropagation();deleteHistory('${item.session_id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                  <div class="h-item-arrow" onclick="loadHistoryDetail('${item.session_id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                </div>
+              </div>`;
+            }).join('');
+          })
+          .catch(() => { body.innerHTML = '<div class="h-empty">Failed to load history.</div>'; });
+      }
+
+      function deleteHistory(sessionId) {
+        if (!confirm('Delete this estimation record?')) return;
+        fetch('/api/history/' + sessionId, { method: 'DELETE' })
+          .then(r => r.json())
+          .then(() => loadHistory())
+          .catch(() => alert('Failed to delete'));
+      }
+
+      function loadHistoryDetail(sessionId) {
+        const body = document.getElementById("historyBody");
+        body.innerHTML = '<div class="h-empty">Loading...</div>';
+        fetch("/api/history/" + sessionId)
+          .then(r => r.json())
+          .then(data => {
+            const d = data.createdAt ? new Date(data.createdAt).toLocaleString() : '';
+            const hrs = data.hours ? `${data.hours} hours` : '';
+            let rows = '', total = 0;
+            (data.participantDetails || []).forEach(p => {
+              const rl = p.role.toLowerCase();
+              total += p.points;
+              rows += `<tr><td><strong>${p.name}</strong></td><td><span class="role-tag ${rl}">${p.role}</span></td><td style="text-align:right;font-weight:700;color:#182954">${p.points}</td></tr>`;
+            });
+            const cnt = (data.participantDetails || []).length;
+            const av = cnt > 0 ? (total / cnt).toFixed(1) : 0;
+            let roleHtml = '';
+            ['FE','BE','QA'].forEach(role => {
+              const rs = data.roleStats[role];
+              const members = (data.participantDetails || []).filter(p => p.role === role);
+              const ra = rs.points.length > 0 ? rs.average.toFixed(1) : '\u2014';
+              const mbody = members.length === 0
+                ? '<div class="h-rs-empty">\u2014</div>'
+                : members.map(m => `<div class="h-rs-row"><span class="h-rs-row-name">${m.name}</span><span class="h-rs-row-pts">${m.points}</span></div>`).join('');
+              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${members.length})</span><span class="h-rs-avg">${ra}</span></div><div class="h-rs-body">${mbody}</div></div>`;
+            });
+            body.innerHTML = `<div class="h-detail">
+              <button class="h-back" onclick="loadHistory()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
+              <div class="h-detail-header">
+                <div class="h-detail-pts">${data.finalPoints ?? '\u2014'}</div>
+                <div>
+                  <div class="h-detail-story">${data.storyId}</div>
+                  <div class="h-detail-meta">${d}${hrs ? ' &middot; ' + hrs : ''}</div>
+                </div>
+              </div>
+              <table class="result-table">
+                <thead><tr><th>Name</th><th>Role</th><th style="text-align:right">Points</th></tr></thead>
+                <tbody>${rows}</tbody>
+                <tfoot><tr><td>Total / Average</td><td style="font-size:12px;color:#888">${cnt} people</td><td style="text-align:right">${total} <span style="font-size:12px;font-weight:400;color:#888">/ avg ${av}</span></td></tr></tfoot>
+              </table>
+              <div class="h-role-stats">${roleHtml}</div>
+            </div>`;
+          })
+          .catch(() => { body.innerHTML = '<div class="h-empty">Failed to load details.</div>'; });
+      }
+    </script>
+  </body>
+</html>
