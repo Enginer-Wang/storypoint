@@ -586,6 +586,7 @@
         </div>
 
         <div class="actions-bar">
+          <button class="btn btn-secondary" onclick="backToSession()">Back</button>
           <button class="btn btn-secondary" onclick="resetSession()">New Session</button>
         </div>
       </div>
@@ -620,7 +621,8 @@
             setStatus("Session Active", true);
             connectWebSocket(data.sessionId);
             updateParticipants(data.sessionId);
-            setInterval(() => updateParticipants(data.sessionId), 2000);
+            if (updateInterval) clearInterval(updateInterval);
+            updateInterval = setInterval(() => updateParticipants(data.sessionId), 2000);
           })
           .catch(() => alert("Failed to create session"));
       }
@@ -709,7 +711,6 @@
         ["FE", "BE", "QA"].forEach(role => {
           const rs = data.roleStats[role];
           const roleKey = role.toLowerCase();
-          const roleAvg = rs.points.length > 0 ? rs.average.toFixed(1) : "\u2014";
 
           let membersHtml = "";
           if (rs.points.length === 0) {
@@ -723,7 +724,6 @@
           rbDiv.innerHTML += `<div class="rb-card">
             <div class="rb-header ${roleKey}">
               <span>${role} (${rs.points.length})</span>
-              <span class="rb-header-avg">avg ${roleAvg}</span>
             </div>
             <div class="rb-body">${membersHtml}</div>
           </div>`;
@@ -738,7 +738,7 @@
             statsDiv.innerHTML += `<div class="stat-card">
               <div class="stat-label">${role} Average</div>
               <div class="stat-value">${Math.round(stats.average)}</div>
-              <div style="font-size:11px;opacity:.7;margin-top:4px">Sum ${stats.sum} / ${stats.points.length} people</div>
+              <div style="font-size:11px;opacity:.7;margin-top:4px">${stats.points.length} people</div>
             </div>`;
           }
         });
@@ -780,16 +780,30 @@
           body: JSON.stringify({ finalPoints: fp, hours: hrs || 0 }),
         })
           .then(r => r.json())
-          .then(() => alert("Decision saved"))
+          .then(() => {
+            alert("Decision saved successfully!");
+            resetSession();
+          })
           .catch(() => alert("Failed to save"));
       }
 
+      function backToSession() {
+        if (!currentSession) return;
+        document.getElementById("resultsSection").classList.remove("active");
+        document.getElementById("sessionSection").classList.remove("hidden");
+        setStatus("Session Active", true);
+      }
+
+      let updateInterval = null;
+
       function resetSession() {
+        if (updateInterval) { clearInterval(updateInterval); updateInterval = null; }
         currentSession = null;
         document.getElementById("setupSection").classList.remove("hidden");
         document.getElementById("sessionSection").classList.add("hidden");
         document.getElementById("resultsSection").classList.remove("active");
         document.getElementById("storyInput").value = "";
+        document.getElementById("participantsList").innerHTML = '';
         setStatus("Ready", false);
         if (ws) ws.close();
       }
@@ -851,20 +865,10 @@
             const d = data.createdAt ? new Date(data.createdAt).toLocaleString() : '';
             const hrs = data.hours ? `${data.hours} hours` : '';
 
-            // 计算各角色 avg 之和作为 fallback
-            let avgSum = 0;
-            ['FE','BE','QA'].forEach(role => {
-              const rs = data.roleStats[role];
-              if (rs && rs.points.length > 0) avgSum += rs.average;
-            });
-            const avgSumRound = Math.round(avgSum);
+            // 展示 Final Decision 的值
+            const displayPoints = (data.finalPoints && data.finalPoints > 0) ? data.finalPoints : '\u2014';
 
-            // 优先显示 Final Decision；如果为 0/null 则回退到 avg
-            const displayPoints = (data.finalPoints && data.finalPoints > 0) ? data.finalPoints : avgSumRound;
-            const pointsSource = (data.finalPoints && data.finalPoints > 0) ? 'Final Decision' : 'Avg Sum';
-
-            // 构建参与者表格（新格式：每人 FE/BE/QA/Total）
-            // 数据库存的 submissions 是按角色分行的，需要按人聚合
+            // 构建参与者表格
             const details = data.participantDetails || [];
             const personMap = {};
             details.forEach(p => {
@@ -883,17 +887,17 @@
             const cnt = persons.length;
             const av = cnt > 0 ? (grandTotal / cnt).toFixed(1) : 0;
 
-            // Role Breakdown
+            // Role Breakdown - 只显示四舍五入后的 Average，不显示 avg
             let roleHtml = '';
             ['FE','BE','QA'].forEach(role => {
               const rs = data.roleStats[role];
-              const ra = rs.points.length > 0 ? rs.average.toFixed(1) : '\u2014';
               const roleKey = role;
               const membersWithRole = persons.filter(p => p[roleKey] > 0);
+              const roundAvg = rs.points.length > 0 ? Math.round(rs.average) : '\u2014';
               const mbody = membersWithRole.length === 0
                 ? '<div class="h-rs-empty">\u2014</div>'
                 : membersWithRole.map(m => `<div class="h-rs-row"><span class="h-rs-row-name">${m.name}</span><span class="h-rs-row-pts">${m[roleKey]}</span></div>`).join('');
-              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${rs.points.length})</span><span class="h-rs-avg">${ra}</span></div><div class="h-rs-body">${mbody}</div></div>`;
+              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${rs.points.length})</span><span class="h-rs-avg">${roundAvg}</span></div><div class="h-rs-body">${mbody}</div></div>`;
             });
 
             body.innerHTML = `<div class="h-detail">
@@ -902,7 +906,7 @@
                 <div class="h-detail-pts">${displayPoints || '\u2014'}</div>
                 <div>
                   <div class="h-detail-story">${data.storyId}</div>
-                  <div class="h-detail-meta">${d}${hrs ? ' &middot; ' + hrs : ''}${pointsSource ? ' &middot; ' + pointsSource : ''}</div>
+                  <div class="h-detail-meta">${d}${hrs ? ' &middot; ' + hrs : ''}</div>
                 </div>
               </div>
               <table class="result-table">
