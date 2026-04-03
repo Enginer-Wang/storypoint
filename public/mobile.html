@@ -114,32 +114,49 @@
       .btn-secondary:hover{background:#f4f6f9}
       .btn-success{background:#16a34a;color:#fff}
 
-      /* ===== 角色选择 ===== */
-      .role-group{
+      /* ===== Role Tab ===== */
+      .role-tabs{
         display:flex;
-        gap:8px;
+        gap:0;
         margin-bottom:14px;
+        border-radius:8px;
+        overflow:hidden;
+        border:2px solid #182954;
       }
-      .role-btn{
+      .role-tab{
         flex:1;
         height:42px;
         display:flex;
         align-items:center;
         justify-content:center;
-        border:2px solid #d0d5dd;
-        border-radius:6px;
         font-size:13px;
         font-weight:600;
-        color:#555;
+        color:#182954;
         background:#fff;
         cursor:pointer;
         transition:all .2s;
+        border-right:1px solid #182954;
+        position:relative;
       }
-      .role-btn.active{
-        border-color:#182954;
+      .role-tab:last-child{border-right:none}
+      .role-tab.active{
         background:#182954;
         color:#fff;
       }
+      .role-tab .tab-badge{
+        position:absolute;
+        top:4px;
+        right:6px;
+        background:#dc2626;
+        color:#fff;
+        font-size:10px;
+        font-weight:700;
+        min-width:18px;height:18px;
+        border-radius:9px;
+        display:flex;align-items:center;justify-content:center;
+        padding:0 3px;
+      }
+      .role-tab .tab-badge.empty{display:none}
 
       /* ===== 扑克牌网格 ===== */
       .poker-grid{
@@ -169,35 +186,73 @@
         font-size:10px;
         font-weight:500;
         color:#999;
-        margin-top:4px;
+        margin-top:2px;
       }
       .poker-card:active{transform:scale(.95)}
-      .poker-card.selected{
-        border-color:#182954;
-        background:#182954;
+      .poker-card .card-count{
+        position:absolute;
+        top:-8px;
+        right:-8px;
+        background:#dc2626;
         color:#fff;
-        box-shadow:0 4px 12px rgba(24,41,84,.3);
+        font-size:11px;
+        font-weight:700;
+        min-width:20px;height:20px;
+        border-radius:10px;
+        display:flex;align-items:center;justify-content:center;
+        padding:0 4px;
       }
-      .poker-card.selected .card-sub{color:rgba(255,255,255,.7)}
+      .poker-card .card-count.zero{display:none}
+      .poker-card.has-count{
+        border-color:#182954;
+        background:rgba(24,41,84,.06);
+      }
 
-      /* ===== 选中信息 ===== */
-      .selection-bar{
-        display:none;
+      /* ===== 总计栏 ===== */
+      .total-bar{
         background:#f0f4ff;
         border:1px solid #c7d2fe;
         border-radius:6px;
         padding:14px;
         margin-bottom:14px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+      }
+      .total-bar-label{font-size:13px;color:#666;font-weight:600}
+      .total-bar-value{font-size:24px;font-weight:700;color:#182954}
+
+      /* ===== 摘要卡片 ===== */
+      .summary-row{
+        display:flex;
+        gap:8px;
+        margin-bottom:14px;
+      }
+      .summary-card{
+        flex:1;
+        background:#182954;
+        color:#fff;
+        border-radius:8px;
+        padding:12px 10px;
         text-align:center;
       }
-      .selection-bar.active{display:block}
-      .selection-bar-label{font-size:12px;color:#666;margin-bottom:4px}
-      .selection-bar-value{font-size:28px;font-weight:700;color:#182954}
+      .summary-card-label{font-size:10px;text-transform:uppercase;opacity:.7;margin-bottom:4px}
+      .summary-card-value{font-size:20px;font-weight:700}
+      .summary-card-edit{
+        width:50px;height:28px;
+        border:1px solid rgba(255,255,255,.3);
+        border-radius:4px;
+        background:rgba(255,255,255,.15);
+        color:#fff;
+        font-size:16px;
+        font-weight:700;
+        text-align:center;
+        outline:none;
+      }
+      .summary-card-edit:focus{border-color:#fff;background:rgba(255,255,255,.25)}
 
       /* ===== 参与者列表 ===== */
-      .p-list{
-        margin-top:12px;
-      }
+      .p-list{margin-top:12px}
       .p-item{
         display:flex;
         align-items:center;
@@ -218,19 +273,8 @@
         font-weight:600;
         flex-shrink:0;
       }
-      .p-avatar.fe{background:#2563eb}
-      .p-avatar.be{background:#7c3aed}
-      .p-avatar.qa{background:#0d9488}
       .p-name{font-size:14px;font-weight:600;color:#333;flex:1}
-      .p-role-tag{
-        font-size:11px;
-        padding:2px 8px;
-        border-radius:10px;
-        font-weight:600;
-      }
-      .p-role-tag.fe{background:#dbeafe;color:#2563eb}
-      .p-role-tag.be{background:#ede9fe;color:#7c3aed}
-      .p-role-tag.qa{background:#ccfbf1;color:#0d9488}
+      .p-status-icon{flex-shrink:0}
 
       /* ===== 提交完成 ===== */
       .done-icon{
@@ -287,7 +331,7 @@
       Story Point Estimation
     </nav>
 
-    <!-- Toast 错误提示 -->
+    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <div class="main">
@@ -305,16 +349,7 @@
             <div class="info-block-label">Story ID</div>
             <div class="info-block-value" id="storyId">—</div>
           </div>
-
           <input class="form-input" type="text" id="nameInput" placeholder="Your name" maxlength="20" />
-
-          <div class="section-label">Select Role</div>
-          <div class="role-group">
-            <div class="role-btn" data-role="FE" onclick="pickRole(this)">FE</div>
-            <div class="role-btn" data-role="BE" onclick="pickRole(this)">BE</div>
-            <div class="role-btn" data-role="QA" onclick="pickRole(this)">QA</div>
-          </div>
-
           <button class="btn btn-primary" onclick="joinSession()">Join Session</button>
         </div>
       </div>
@@ -331,26 +366,44 @@
               <div class="info-block-label">Name</div>
               <div class="info-block-value" id="myName">—</div>
             </div>
-            <div class="info-block" style="flex:1;margin-bottom:0">
-              <div class="info-block-label">Role</div>
-              <div class="info-block-value" id="myRole">—</div>
+          </div>
+
+          <!-- Role Tabs -->
+          <div class="section-label">Estimate for each role</div>
+          <div class="role-tabs">
+            <div class="role-tab active" data-role="FE" onclick="switchRole('FE',this)">FE <span class="tab-badge empty" id="badgeFE"></span></div>
+            <div class="role-tab" data-role="BE" onclick="switchRole('BE',this)">BE <span class="tab-badge empty" id="badgeBE"></span></div>
+            <div class="role-tab" data-role="QA" onclick="switchRole('QA',this)">QA <span class="tab-badge empty" id="badgeQA"></span></div>
+          </div>
+
+          <!-- Poker Cards -->
+          <div class="poker-grid" id="pokerGrid"></div>
+
+          <!-- Current role total -->
+          <div class="total-bar">
+            <span class="total-bar-label"><span id="currentRoleLabel">FE</span> Points</span>
+            <span class="total-bar-value" id="currentRoleTotal">0</span>
+          </div>
+
+          <!-- Summary: FE + BE + QA -->
+          <div class="section-label">Summary</div>
+          <div class="summary-row">
+            <div class="summary-card">
+              <div class="summary-card-label">FE</div>
+              <input class="summary-card-edit" id="sumFE" type="number" value="0" min="0" onchange="onSummaryEdit()" onkeyup="onSummaryEdit()" />
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-label">BE</div>
+              <input class="summary-card-edit" id="sumBE" type="number" value="0" min="0" onchange="onSummaryEdit()" onkeyup="onSummaryEdit()" />
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-label">QA</div>
+              <input class="summary-card-edit" id="sumQA" type="number" value="0" min="0" onchange="onSummaryEdit()" onkeyup="onSummaryEdit()" />
             </div>
           </div>
-
-          <div class="section-label">Select Story Points</div>
-          <div class="poker-grid">
-            <div class="poker-card" onclick="selectPoint(this,1)">1<span class="card-sub">XS</span></div>
-            <div class="poker-card" onclick="selectPoint(this,2)">2<span class="card-sub">S</span></div>
-            <div class="poker-card" onclick="selectPoint(this,3)">3<span class="card-sub">S-M</span></div>
-            <div class="poker-card" onclick="selectPoint(this,5)">5<span class="card-sub">M</span></div>
-            <div class="poker-card" onclick="selectPoint(this,8)">8<span class="card-sub">L</span></div>
-            <div class="poker-card" onclick="selectPoint(this,13)">13<span class="card-sub">XL</span></div>
-            <div class="poker-card" onclick="selectPoint(this,21)">21<span class="card-sub">XXL</span></div>
-          </div>
-
-          <div class="selection-bar" id="selectionBar">
-            <div class="selection-bar-label">Your Pick</div>
-            <div class="selection-bar-value" id="selectedValue">0</div>
+          <div class="total-bar" style="background:#182954;border-color:#182954">
+            <span class="total-bar-label" style="color:rgba(255,255,255,.7)">Grand Total</span>
+            <span class="total-bar-value" style="color:#fff" id="grandTotal">0</span>
           </div>
 
           <div class="section-label">Participants</div>
@@ -358,7 +411,7 @@
 
           <div style="display:flex;gap:10px;margin-top:16px">
             <button class="btn btn-primary" style="flex:2" onclick="submitEstimate()">Submit</button>
-            <button class="btn btn-secondary" style="flex:1" onclick="cancelEstimate()">Clear</button>
+            <button class="btn btn-secondary" style="flex:1" onclick="clearAll()">Clear</button>
           </div>
         </div>
       </div>
@@ -370,7 +423,21 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div style="font-size:18px;font-weight:600;color:#333;margin-bottom:6px">Submitted</div>
-          <div style="font-size:14px;color:#888">Waiting for other participants...</div>
+          <div style="font-size:14px;color:#888;margin-bottom:16px">Waiting for other participants...</div>
+          <div class="summary-row">
+            <div class="summary-card">
+              <div class="summary-card-label">FE</div>
+              <div class="summary-card-value" id="doneValFE">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-label">BE</div>
+              <div class="summary-card-value" id="doneValBE">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card-label">QA</div>
+              <div class="summary-card-value" id="doneValQA">0</div>
+            </div>
+          </div>
         </div>
         <div class="card">
           <div class="section-label">Participants Progress</div>
@@ -383,31 +450,30 @@
     <script>
       let sessionId = null;
       let participantId = null;
-      let selectedRole = null;
-      let selectedPoint = null;
       let myName = null;
       let ws = null;
 
+      // 每个角色的卡牌选择数量
+      const POINTS = [1, 2, 3, 5, 8, 13, 21];
+      const POINT_LABELS = {1:'XS', 2:'S', 3:'S-M', 5:'M', 8:'L', 13:'XL', 21:'XXL'};
+      let roleCards = { FE: {}, BE: {}, QA: {} };
+      POINTS.forEach(function(p) { roleCards.FE[p]=0; roleCards.BE[p]=0; roleCards.QA[p]=0; });
+
+      let activeRole = 'FE';
+
       // ===== URL 解析 =====
       function getSessionIdFromUrl() {
-        const path = window.location.pathname;
-        const match = path.match(/\/join\/(.+)/);
+        var path = window.location.pathname;
+        var match = path.match(/\/join\/(.+)/);
         return match ? match[1] : null;
       }
 
       // ===== Toast =====
       function showToast(msg) {
-        const t = document.getElementById("toast");
+        var t = document.getElementById("toast");
         t.textContent = msg;
         t.classList.add("show");
-        setTimeout(() => t.classList.remove("show"), 4000);
-      }
-
-      // ===== Role 选择 =====
-      function pickRole(el) {
-        document.querySelectorAll(".role-btn").forEach(b => b.classList.remove("active"));
-        el.classList.add("active");
-        selectedRole = el.dataset.role;
+        setTimeout(function() { t.classList.remove("show"); }, 4000);
       }
 
       // ===== 初始化 =====
@@ -424,33 +490,33 @@
 
       // ===== WebSocket =====
       function connectWebSocket() {
-        const proto = location.protocol === "https:" ? "wss" : "ws";
+        var proto = location.protocol === "https:" ? "wss" : "ws";
         ws = new WebSocket(proto + "://" + location.host);
-        ws.onopen = () => console.log("WS connected");
-        ws.onmessage = (e) => {
-          const d = JSON.parse(e.data);
+        ws.onopen = function() { console.log("WS connected"); };
+        ws.onmessage = function(e) {
+          var d = JSON.parse(e.data);
           if (d.type === "participant-joined" || d.type === "participant-left" || d.type === "participant-submitted") {
             refreshParticipants();
           }
         };
-        ws.onerror = () => console.error("WS error");
+        ws.onerror = function() { console.error("WS error"); };
       }
 
       // ===== 加载会话 =====
       function loadSessionInfo() {
         fetch("/api/session/" + sessionId)
-          .then(r => {
+          .then(function(r) {
             if (!r.ok) throw new Error("Session not found");
             return r.json();
           })
-          .then(data => {
+          .then(function(data) {
             document.getElementById("storyId").textContent = data.storyId;
             document.getElementById("storyIdDetail").textContent = data.storyId;
             document.getElementById("loadingSection").classList.add("hidden");
             document.getElementById("joinSection").classList.remove("hidden");
             refreshParticipants();
           })
-          .catch(() => {
+          .catch(function() {
             document.getElementById("loadingSection").innerHTML = '<div style="text-align:center;padding:60px 0;color:#dc2626;font-weight:600">Session not found or expired.</div>';
           });
       }
@@ -458,104 +524,177 @@
       // ===== 刷新参与者 =====
       function refreshParticipants() {
         fetch("/api/session/" + sessionId)
-          .then(r => r.json())
-          .then(data => {
-            renderPList("participantsList", data.participants, false);
-            renderPList("submittedParticipantsList", data.participants, true);
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            renderPList("participantsList", data.participants);
+            renderPList("submittedParticipantsList", data.participants);
           });
       }
 
-      function renderPList(elId, participants, showStatus) {
-        const el = document.getElementById(elId);
+      function renderPList(elId, participants) {
+        var el = document.getElementById(elId);
         if (!el) return;
         if (!participants || participants.length === 0) {
           el.innerHTML = '<div style="padding:12px 0;color:#999;font-size:13px;text-align:center">No participants yet</div>';
           return;
         }
-        el.innerHTML = participants.map(p => {
-          const r = p.role.toLowerCase();
-          const ini = p.name.charAt(0).toUpperCase();
-          const status = showStatus ? (p.totalPoints ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>') : '';
-          return `<div class="p-item">
-            <div class="p-avatar ${r}">${ini}</div>
-            <div class="p-name">${p.name}</div>
-            <span class="p-role-tag ${r}">${p.role}</span>
-            ${status}
-          </div>`;
+        el.innerHTML = participants.map(function(p) {
+          var ini = p.name.charAt(0).toUpperCase();
+          var hasSubmitted = p.hasSubmitted;
+          var icon = hasSubmitted
+            ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+            : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+          return '<div class="p-item">' +
+            '<div class="p-avatar">' + ini + '</div>' +
+            '<div class="p-name">' + p.name + '</div>' +
+            '<div class="p-status-icon">' + icon + '</div>' +
+          '</div>';
         }).join("");
       }
 
       // ===== 加入会话 =====
       function joinSession() {
-        const name = document.getElementById("nameInput").value.trim();
+        var name = document.getElementById("nameInput").value.trim();
         if (!name) { showToast("Please enter your name"); return; }
-        if (!selectedRole) { showToast("Please select a role"); return; }
 
         fetch("/api/session/" + sessionId + "/join", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: name, role: selectedRole }),
+          body: JSON.stringify({ name: name }),
         })
-          .then(r => r.json())
-          .then(data => {
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
             participantId = data.participantId;
             myName = name;
             document.getElementById("myName").textContent = name;
-            document.getElementById("myRole").textContent = selectedRole;
 
             if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: "join", sessionId: sessionId, name: name, role: selectedRole, participantId: participantId }));
+              ws.send(JSON.stringify({ type: "join", sessionId: sessionId, name: name, participantId: participantId }));
             }
 
             document.getElementById("joinSection").classList.add("hidden");
             document.getElementById("estimatingSection").classList.remove("hidden");
+            renderPokerGrid();
             refreshParticipants();
           })
-          .catch(() => showToast("Failed to join session"));
+          .catch(function() { showToast("Failed to join session"); });
       }
 
-      // ===== 选择点数 =====
-      function selectPoint(el, point) {
-        if (selectedPoint === point) {
-          // 取消选择
-          el.classList.remove("selected");
-          selectedPoint = null;
-          document.getElementById("selectionBar").classList.remove("active");
-          return;
-        }
-        selectedPoint = point;
-        document.querySelectorAll(".poker-card").forEach(c => c.classList.remove("selected"));
-        el.classList.add("selected");
-        document.getElementById("selectedValue").textContent = point;
-        document.getElementById("selectionBar").classList.add("active");
+      // ===== Role Tab 切换 =====
+      function switchRole(role, el) {
+        activeRole = role;
+        document.querySelectorAll('.role-tab').forEach(function(t) { t.classList.remove('active'); });
+        el.classList.add('active');
+        document.getElementById('currentRoleLabel').textContent = role;
+        renderPokerGrid();
+        updateCurrentRoleTotal();
       }
 
-      function cancelEstimate() {
-        selectedPoint = null;
-        document.querySelectorAll(".poker-card").forEach(c => c.classList.remove("selected"));
-        document.getElementById("selectionBar").classList.remove("active");
+      // ===== 渲染卡牌 =====
+      function renderPokerGrid() {
+        var grid = document.getElementById('pokerGrid');
+        grid.innerHTML = POINTS.map(function(p) {
+          var cnt = roleCards[activeRole][p] || 0;
+          var hasClass = cnt > 0 ? 'has-count' : '';
+          var countClass = cnt > 0 ? '' : 'zero';
+          return '<div class="poker-card ' + hasClass + '" onclick="tapCard(' + p + ')">' +
+            '<span class="card-count ' + countClass + '">' + cnt + '</span>' +
+            p + '<span class="card-sub">' + POINT_LABELS[p] + '</span>' +
+          '</div>';
+        }).join('');
+      }
+
+      // ===== 点击卡牌：累加 =====
+      function tapCard(point) {
+        roleCards[activeRole][point] = (roleCards[activeRole][point] || 0) + 1;
+        renderPokerGrid();
+        updateCurrentRoleTotal();
+        updateSummary();
+        updateBadges();
+      }
+
+      // ===== 计算角色总点数 =====
+      function calcRoleTotal(role) {
+        var total = 0;
+        POINTS.forEach(function(p) { total += (roleCards[role][p] || 0) * p; });
+        return total;
+      }
+
+      function updateCurrentRoleTotal() {
+        document.getElementById('currentRoleTotal').textContent = calcRoleTotal(activeRole);
+      }
+
+      function updateSummary() {
+        ['FE','BE','QA'].forEach(function(role) {
+          document.getElementById('sum' + role).value = calcRoleTotal(role);
+        });
+        updateGrandTotal();
+      }
+
+      function updateGrandTotal() {
+        var grand = 0;
+        ['FE','BE','QA'].forEach(function(role) {
+          grand += parseInt(document.getElementById('sum' + role).value) || 0;
+        });
+        document.getElementById('grandTotal').textContent = grand;
+      }
+
+      function onSummaryEdit() {
+        updateGrandTotal();
+      }
+
+      function updateBadges() {
+        ['FE','BE','QA'].forEach(function(role) {
+          var total = calcRoleTotal(role);
+          var badge = document.getElementById('badge' + role);
+          if (total > 0) {
+            badge.textContent = total;
+            badge.classList.remove('empty');
+          } else {
+            badge.classList.add('empty');
+          }
+        });
+      }
+
+      // ===== 清空 =====
+      function clearAll() {
+        POINTS.forEach(function(p) { roleCards.FE[p]=0; roleCards.BE[p]=0; roleCards.QA[p]=0; });
+        renderPokerGrid();
+        updateCurrentRoleTotal();
+        updateSummary();
+        updateBadges();
       }
 
       // ===== 提交 =====
       function submitEstimate() {
-        if (selectedPoint === null) { showToast("Please select a point value"); return; }
+        var fe = parseInt(document.getElementById('sumFE').value) || 0;
+        var be = parseInt(document.getElementById('sumBE').value) || 0;
+        var qa = parseInt(document.getElementById('sumQA').value) || 0;
+
+        if (fe === 0 && be === 0 && qa === 0) {
+          showToast("Please estimate at least one role");
+          return;
+        }
 
         fetch("/api/session/" + sessionId + "/submit-points", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ participantId: participantId, points: selectedPoint }),
+          body: JSON.stringify({ participantId: participantId, fe: fe, be: be, qa: qa }),
         })
-          .then(r => r.json())
-          .then(() => {
+          .then(function(r) { return r.json(); })
+          .then(function() {
             if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: "points-submitted", sessionId: sessionId, name: myName, role: selectedRole, points: selectedPoint }));
+              ws.send(JSON.stringify({ type: "points-submitted", sessionId: sessionId, name: myName, fe: fe, be: be, qa: qa }));
             }
+            document.getElementById('doneValFE').textContent = fe;
+            document.getElementById('doneValBE').textContent = be;
+            document.getElementById('doneValQA').textContent = qa;
             document.getElementById("estimatingSection").classList.add("hidden");
             document.getElementById("submittedSection").classList.remove("hidden");
             refreshParticipants();
             setInterval(refreshParticipants, 4000);
           })
-          .catch(() => showToast("Failed to submit"));
+          .catch(function() { showToast("Failed to submit"); });
       }
 
       // ===== 启动 =====

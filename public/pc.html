@@ -558,7 +558,7 @@
         <div class="card">
           <div class="form-label">Individual Scores</div>
           <table class="result-table">
-            <thead><tr><th>Name</th><th>Role</th><th style="text-align:right">Points</th></tr></thead>
+            <thead><tr><th>Name</th><th style="text-align:center">FE</th><th style="text-align:center">BE</th><th style="text-align:center">QA</th><th style="text-align:right">Total</th></tr></thead>
             <tbody id="participantResults"></tbody>
             <tfoot id="participantTotal"></tfoot>
           </table>
@@ -648,16 +648,18 @@
             }
             list.innerHTML = "";
             data.participants.forEach(p => {
-              const r = p.role.toLowerCase();
               const initials = p.name.charAt(0).toUpperCase();
+              const statusIcon = p.hasSubmitted
+                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
+                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
               list.innerHTML += `
                 <div class="p-card">
-                  <div class="p-avatar ${r}">${initials}</div>
+                  <div class="p-avatar">${initials}</div>
                   <div class="p-info">
                     <div class="p-name">${p.name}</div>
-                    <div class="p-role">${p.role}</div>
+                    <div class="p-role">${p.hasSubmitted ? 'Submitted' : 'Waiting...'}</div>
                   </div>
-                  <div class="p-pts">${p.totalPoints || "—"}</div>
+                  <div class="p-pts">${statusIcon}</div>
                 </div>`;
             });
           });
@@ -682,12 +684,13 @@
         tbody.innerHTML = "";
         let grandTotal = 0;
         data.participantDetails.forEach(p => {
-          const r = p.role.toLowerCase();
-          grandTotal += p.points;
+          grandTotal += p.total;
           tbody.innerHTML += `<tr>
             <td><strong>${p.name}</strong></td>
-            <td><span class="role-tag ${r}">${p.role}</span></td>
-            <td style="text-align:right;font-weight:700;color:#182954">${p.points}</td>
+            <td style="text-align:center">${p.fe}</td>
+            <td style="text-align:center">${p.be}</td>
+            <td style="text-align:center">${p.qa}</td>
+            <td style="text-align:right;font-weight:700;color:#182954">${p.total}</td>
           </tr>`;
         });
 
@@ -696,7 +699,7 @@
         const avg = count > 0 ? (grandTotal / count).toFixed(1) : 0;
         tfoot.innerHTML = `<tr>
           <td>Total / Average</td>
-          <td><span style="font-size:12px;color:#888">${count} participants</span></td>
+          <td colspan="3" style="text-align:center"><span style="font-size:12px;color:#888">${count} participants</span></td>
           <td style="text-align:right">${grandTotal} <span style="font-size:12px;font-weight:400;color:#888">/ avg ${avg}</span></td>
         </tr>`;
 
@@ -705,35 +708,37 @@
         rbDiv.innerHTML = "";
         ["FE", "BE", "QA"].forEach(role => {
           const rs = data.roleStats[role];
-          const members = data.participantDetails.filter(p => p.role === role);
+          const roleKey = role.toLowerCase();
           const roleAvg = rs.points.length > 0 ? rs.average.toFixed(1) : "\u2014";
 
           let membersHtml = "";
-          if (members.length === 0) {
-            membersHtml = '<div class="rb-empty">No participants</div>';
+          if (rs.points.length === 0) {
+            membersHtml = '<div class="rb-empty">No estimates</div>';
           } else {
-            membersHtml = members.map(m => `<div class="rb-row"><span class="rb-row-name">${m.name}</span><span class="rb-row-pts">${m.points}</span></div>`).join("");
+            membersHtml = data.participantDetails
+              .filter(p => p[roleKey] > 0)
+              .map(m => `<div class="rb-row"><span class="rb-row-name">${m.name}</span><span class="rb-row-pts">${m[roleKey]}</span></div>`).join("");
           }
 
           rbDiv.innerHTML += `<div class="rb-card">
-            <div class="rb-header ${role.toLowerCase()}">
-              <span>${role} (${members.length})</span>
+            <div class="rb-header ${roleKey}">
+              <span>${role} (${rs.points.length})</span>
               <span class="rb-header-avg">avg ${roleAvg}</span>
             </div>
             <div class="rb-body">${membersHtml}</div>
           </div>`;
         });
+       
 
         // === Stat Cards ===
         const statsDiv = document.getElementById("roleStats");
         statsDiv.innerHTML = "";
         Object.entries(data.roleStats).forEach(([role, stats]) => {
           if (stats.points.length > 0) {
-            const sum = stats.points.reduce((a, b) => a + b, 0);
             statsDiv.innerHTML += `<div class="stat-card">
               <div class="stat-label">${role} Average</div>
               <div class="stat-value">${Math.round(stats.average)}</div>
-              <div style="font-size:11px;opacity:.7;margin-top:4px">Sum ${sum} / ${stats.points.length} people</div>
+              <div style="font-size:11px;opacity:.7;margin-top:4px">Sum ${stats.sum} / ${stats.points.length} people</div>
             </div>`;
           }
         });
@@ -845,37 +850,65 @@
           .then(data => {
             const d = data.createdAt ? new Date(data.createdAt).toLocaleString() : '';
             const hrs = data.hours ? `${data.hours} hours` : '';
-            let rows = '', total = 0;
-            (data.participantDetails || []).forEach(p => {
-              const rl = p.role.toLowerCase();
-              total += p.points;
-              rows += `<tr><td><strong>${p.name}</strong></td><td><span class="role-tag ${rl}">${p.role}</span></td><td style="text-align:right;font-weight:700;color:#182954">${p.points}</td></tr>`;
+
+            // 计算各角色 avg 之和作为 fallback
+            let avgSum = 0;
+            ['FE','BE','QA'].forEach(role => {
+              const rs = data.roleStats[role];
+              if (rs && rs.points.length > 0) avgSum += rs.average;
             });
-            const cnt = (data.participantDetails || []).length;
-            const av = cnt > 0 ? (total / cnt).toFixed(1) : 0;
+            const avgSumRound = Math.round(avgSum);
+
+            // 优先显示 Final Decision；如果为 0/null 则回退到 avg
+            const displayPoints = (data.finalPoints && data.finalPoints > 0) ? data.finalPoints : avgSumRound;
+            const pointsSource = (data.finalPoints && data.finalPoints > 0) ? 'Final Decision' : 'Avg Sum';
+
+            // 构建参与者表格（新格式：每人 FE/BE/QA/Total）
+            // 数据库存的 submissions 是按角色分行的，需要按人聚合
+            const details = data.participantDetails || [];
+            const personMap = {};
+            details.forEach(p => {
+              if (!personMap[p.name]) personMap[p.name] = { name: p.name, FE: 0, BE: 0, QA: 0 };
+              if (p.role === 'FE') personMap[p.name].FE += p.points;
+              else if (p.role === 'BE') personMap[p.name].BE += p.points;
+              else if (p.role === 'QA') personMap[p.name].QA += p.points;
+            });
+            const persons = Object.values(personMap);
+            let rows = '', grandTotal = 0;
+            persons.forEach(p => {
+              const pTotal = p.FE + p.BE + p.QA;
+              grandTotal += pTotal;
+              rows += `<tr><td><strong>${p.name}</strong></td><td style="text-align:center">${p.FE}</td><td style="text-align:center">${p.BE}</td><td style="text-align:center">${p.QA}</td><td style="text-align:right;font-weight:700;color:#182954">${pTotal}</td></tr>`;
+            });
+            const cnt = persons.length;
+            const av = cnt > 0 ? (grandTotal / cnt).toFixed(1) : 0;
+
+            // Role Breakdown
             let roleHtml = '';
             ['FE','BE','QA'].forEach(role => {
               const rs = data.roleStats[role];
-              const members = (data.participantDetails || []).filter(p => p.role === role);
               const ra = rs.points.length > 0 ? rs.average.toFixed(1) : '\u2014';
-              const mbody = members.length === 0
+              const roleKey = role;
+              const membersWithRole = persons.filter(p => p[roleKey] > 0);
+              const mbody = membersWithRole.length === 0
                 ? '<div class="h-rs-empty">\u2014</div>'
-                : members.map(m => `<div class="h-rs-row"><span class="h-rs-row-name">${m.name}</span><span class="h-rs-row-pts">${m.points}</span></div>`).join('');
-              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${members.length})</span><span class="h-rs-avg">${ra}</span></div><div class="h-rs-body">${mbody}</div></div>`;
+                : membersWithRole.map(m => `<div class="h-rs-row"><span class="h-rs-row-name">${m.name}</span><span class="h-rs-row-pts">${m[roleKey]}</span></div>`).join('');
+              roleHtml += `<div class="h-rs-card"><div class="h-rs-head"><span>${role} (${rs.points.length})</span><span class="h-rs-avg">${ra}</span></div><div class="h-rs-body">${mbody}</div></div>`;
             });
+
             body.innerHTML = `<div class="h-detail">
               <button class="h-back" onclick="loadHistory()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg> Back</button>
               <div class="h-detail-header">
-                <div class="h-detail-pts">${data.finalPoints ?? '\u2014'}</div>
+                <div class="h-detail-pts">${displayPoints || '\u2014'}</div>
                 <div>
                   <div class="h-detail-story">${data.storyId}</div>
-                  <div class="h-detail-meta">${d}${hrs ? ' &middot; ' + hrs : ''}</div>
+                  <div class="h-detail-meta">${d}${hrs ? ' &middot; ' + hrs : ''}${pointsSource ? ' &middot; ' + pointsSource : ''}</div>
                 </div>
               </div>
               <table class="result-table">
-                <thead><tr><th>Name</th><th>Role</th><th style="text-align:right">Points</th></tr></thead>
+                <thead><tr><th>Name</th><th style="text-align:center">FE</th><th style="text-align:center">BE</th><th style="text-align:center">QA</th><th style="text-align:right">Total</th></tr></thead>
                 <tbody>${rows}</tbody>
-                <tfoot><tr><td>Total / Average</td><td style="font-size:12px;color:#888">${cnt} people</td><td style="text-align:right">${total} <span style="font-size:12px;font-weight:400;color:#888">/ avg ${av}</span></td></tr></tfoot>
+                <tfoot><tr><td>Total / Average</td><td colspan="3" style="text-align:center;font-size:12px;color:#888">${cnt} people</td><td style="text-align:right">${grandTotal} <span style="font-size:12px;font-weight:400;color:#888">/ avg ${av}</span></td></tr></tfoot>
               </table>
               <div class="h-role-stats">${roleHtml}</div>
             </div>`;

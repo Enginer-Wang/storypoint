@@ -16,9 +16,11 @@ interface Session {
 
 interface ParticipantData {
   name: string;
-  role: "FE" | "BE" | "QA";
-  points: number[];
+  fe: number;
+  be: number;
+  qa: number;
   totalPoints: number;
+  hasSubmitted: boolean;
   timestamp: Date;
 }
 
@@ -80,8 +82,7 @@ router.get("/api/session/:sessionId", (req: Request, res: Response) => {
 
   const participants = Array.from(session.participants.values()).map((p) => ({
     name: p.name,
-    role: p.role,
-    totalPoints: p.totalPoints,
+    hasSubmitted: p.hasSubmitted,
   }));
 
   res.json({
@@ -96,10 +97,10 @@ router.get("/api/session/:sessionId", (req: Request, res: Response) => {
 // 参与者加入会话
 router.post("/api/session/:sessionId/join", (req: Request, res: Response) => {
   const { sessionId } = req.params;
-  const { name, role } = req.body;
+  const { name } = req.body;
 
-  if (!name || !role) {
-    return res.status(400).json({ error: "name and role are required" });
+  if (!name) {
+    return res.status(400).json({ error: "name is required" });
   }
 
   const session = sessions.get(sessionId);
@@ -111,9 +112,11 @@ router.post("/api/session/:sessionId/join", (req: Request, res: Response) => {
   const participantId = uuidv4();
   session.participants.set(participantId, {
     name,
-    role: role as "FE" | "BE" | "QA",
-    points: [],
+    fe: 0,
+    be: 0,
+    qa: 0,
     totalPoints: 0,
+    hasSubmitted: false,
     timestamp: new Date(),
   });
 
@@ -129,11 +132,15 @@ router.post(
   "/api/session/:sessionId/submit-points",
   async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { participantId, points } = req.body;
+    const { participantId, fe, be, qa } = req.body;
 
-    if (!participantId || typeof points !== "number") {
-      return res.status(400).json({ error: "participantId and points required" });
+    if (!participantId) {
+      return res.status(400).json({ error: "participantId is required" });
     }
+
+    const feVal = typeof fe === "number" ? fe : 0;
+    const beVal = typeof be === "number" ? be : 0;
+    const qaVal = typeof qa === "number" ? qa : 0;
 
     const session = sessions.get(sessionId);
     if (!session) {
@@ -146,22 +153,24 @@ router.post(
     }
 
     // 更新点数
-    participant.points = [points];
-    participant.totalPoints = points;
+    participant.fe = feVal;
+    participant.be = beVal;
+    participant.qa = qaVal;
+    participant.totalPoints = feVal + beVal + qaVal;
+    participant.hasSubmitted = true;
 
-    // 保存到数据库
-    await db.savePointSubmission(
-      sessionId,
-      participantId,
-      participant.name,
-      participant.role,
-      points
-    );
+    // 保存到数据库 (分三条记录: FE / BE / QA)
+    if (feVal > 0) await db.savePointSubmission(sessionId, participantId, participant.name, "FE", feVal);
+    if (beVal > 0) await db.savePointSubmission(sessionId, participantId, participant.name, "BE", beVal);
+    if (qaVal > 0) await db.savePointSubmission(sessionId, participantId, participant.name, "QA", qaVal);
 
     res.json({
       success: true,
       participantName: participant.name,
-      pointsSubmitted: points,
+      fe: feVal,
+      be: beVal,
+      qa: qaVal,
+      total: participant.totalPoints,
     });
   }
 );
@@ -179,34 +188,34 @@ router.post(
 
     const participants = Array.from(session.participants.values());
 
-    // 按角色计算平均值
+    // 按角色聚合每位参与者的点数
     const roleStats: {
-      [key: string]: { points: number[]; average: number };
+      [key: string]: { points: number[]; average: number; sum: number };
     } = {
-      FE: { points: [], average: 0 },
-      BE: { points: [], average: 0 },
-      QA: { points: [], average: 0 },
+      FE: { points: [], average: 0, sum: 0 },
+      BE: { points: [], average: 0, sum: 0 },
+      QA: { points: [], average: 0, sum: 0 },
     };
 
     participants.forEach((p) => {
-      roleStats[p.role].points.push(p.totalPoints);
+      if (p.fe > 0) roleStats.FE.points.push(p.fe);
+      if (p.be > 0) roleStats.BE.points.push(p.be);
+      if (p.qa > 0) roleStats.QA.points.push(p.qa);
     });
 
-    // 计算每个角色的平均值
+    // 计算每个角色的平均值和总和
     Object.keys(roleStats).forEach((role) => {
-      const points = roleStats[role as "FE" | "BE" | "QA"].points;
-      if (points.length > 0) {
-        roleStats[role as "FE" | "BE" | "QA"].average =
-          points.reduce((a, b) => a + b, 0) / points.length;
+      const pts = roleStats[role].points;
+      if (pts.length > 0) {
+        roleStats[role].sum = pts.reduce((a, b) => a + b, 0);
+        roleStats[role].average = roleStats[role].sum / pts.length;
       }
     });
 
-    // 计算最终点数（平均值）
-    const allPoints = participants.map((p) => p.totalPoints);
-    const finalPoints =
-      allPoints.length > 0
-        ? Math.round(allPoints.reduce((a, b) => a + b, 0) / allPoints.length)
-        : 0;
+    // 最终点数 = 三个角色平均值之和(取整)
+    const finalPoints = Math.round(
+      (roleStats.FE.average || 0) + (roleStats.BE.average || 0) + (roleStats.QA.average || 0)
+    );
 
     session.status = "completed";
 
@@ -217,8 +226,10 @@ router.post(
       roleStats,
       participantDetails: participants.map((p) => ({
         name: p.name,
-        role: p.role,
-        points: p.totalPoints,
+        fe: p.fe,
+        be: p.be,
+        qa: p.qa,
+        total: p.totalPoints,
       })),
     };
 
