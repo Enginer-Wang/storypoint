@@ -454,8 +454,8 @@
       let ws = null;
 
       // 每个角色的卡牌选择数量
-      const POINTS = [1, 2, 3, 5, 8, 13, 21];
-      const POINT_LABELS = {1:'XS', 2:'S', 3:'S-M', 5:'M', 8:'L', 13:'XL', 21:'XXL'};
+      const POINTS = [1, 2, 3, 5, 8, 13, 21, 34];
+      const POINT_LABELS = {1:'XS', 2:'S', 3:'S-M', 5:'M', 8:'L', 13:'XL', 21:'XXL', 34:'XXXL'};
       let roleCards = { FE: {}, BE: {}, QA: {} };
       POINTS.forEach(function(p) { roleCards.FE[p]=0; roleCards.BE[p]=0; roleCards.QA[p]=0; });
 
@@ -594,19 +594,22 @@
       function renderPokerGrid() {
         var grid = document.getElementById('pokerGrid');
         grid.innerHTML = POINTS.map(function(p) {
-          var cnt = roleCards[activeRole][p] || 0;
-          var hasClass = cnt > 0 ? 'has-count' : '';
-          var countClass = cnt > 0 ? '' : 'zero';
-          return '<div class="poker-card ' + hasClass + '" onclick="tapCard(' + p + ')">' +
-            '<span class="card-count ' + countClass + '">' + cnt + '</span>' +
+          var selected = roleCards[activeRole][p] === 1;
+          var selClass = selected ? 'has-count' : '';
+          return '<div class="poker-card ' + selClass + '" onclick="tapCard(' + p + ')">' +
+            (selected ? '<span class="card-count">&#10003;</span>' : '') +
             p + '<span class="card-sub">' + POINT_LABELS[p] + '</span>' +
           '</div>';
         }).join('');
       }
 
-      // ===== 点击卡牌：累加 =====
+      // ===== 点击卡牌：toggle 选择/取消 =====
       function tapCard(point) {
-        roleCards[activeRole][point] = (roleCards[activeRole][point] || 0) + 1;
+        if (roleCards[activeRole][point] === 1) {
+          roleCards[activeRole][point] = 0;
+        } else {
+          roleCards[activeRole][point] = 1;
+        }
         renderPokerGrid();
         updateCurrentRoleTotal();
         updateSummary();
@@ -616,7 +619,7 @@
       // ===== 计算角色总点数 =====
       function calcRoleTotal(role) {
         var total = 0;
-        POINTS.forEach(function(p) { total += (roleCards[role][p] || 0) * p; });
+        POINTS.forEach(function(p) { total += roleCards[role][p] === 1 ? p : 0; });
         return total;
       }
 

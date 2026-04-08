@@ -203,6 +203,9 @@ router.delete(
     participant.totalPoints = 0;
     participant.hasSubmitted = false;
 
+    // 同时删除 submissions 表中该参与者的记录
+    await db.deleteParticipantSubmissions(sessionId, participantId);
+
     res.json({ success: true, participantId });
   }
 );

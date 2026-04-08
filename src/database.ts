@@ -261,6 +261,18 @@ export const db = {
     await runAsync(dbInstance, `DELETE FROM sessions WHERE id = ?`, [sessionId]);
   },
 
+  async deleteParticipantSubmissions(
+    sessionId: string,
+    participantId: string
+  ): Promise<void> {
+    if (!dbInstance) throw new Error("Database not connected");
+    await runAsync(
+      dbInstance,
+      `DELETE FROM submissions WHERE session_id = ? AND participant_id = ?`,
+      [sessionId, participantId]
+    );
+  },
+
   async disconnect(): Promise<void> {
     if (dbInstance) {
       return new Promise((resolve, reject) => {
