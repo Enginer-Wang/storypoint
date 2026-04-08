@@ -180,7 +180,7 @@ router.post(
   }
 );
 
-// 删除参与者的提交（重置为未提交状态）
+// 删除参与者（从会话中完全移除）
 router.delete(
   "/api/session/:sessionId/submission/:participantId",
   async (req: Request, res: Response) => {
@@ -191,17 +191,12 @@ router.delete(
       return res.status(404).json({ error: "Session not found" });
     }
 
-    const participant = session.participants.get(participantId);
-    if (!participant) {
+    if (!session.participants.has(participantId)) {
       return res.status(404).json({ error: "Participant not found" });
     }
 
-    // 重置提交状态
-    participant.fe = 0;
-    participant.be = 0;
-    participant.qa = 0;
-    participant.totalPoints = 0;
-    participant.hasSubmitted = false;
+    // 从内存中完全移除该参与者
+    session.participants.delete(participantId);
 
     // 同时删除 submissions 表中该参与者的记录
     await db.deleteParticipantSubmissions(sessionId, participantId);

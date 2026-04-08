@@ -321,6 +321,49 @@
       @keyframes spin{to{transform:rotate(360deg)}}
 
       .hidden{display:none!important}
+
+      /* ===== Member Picker ===== */
+      .member-grid{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+        margin-top:12px;
+      }
+      .member-btn{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding:14px 14px;
+        background:#fff;
+        border:2px solid #e5e7eb;
+        border-radius:10px;
+        cursor:pointer;
+        transition:all .15s;
+        -webkit-tap-highlight-color:transparent;
+      }
+      .member-btn:active{
+        transform:scale(.97);
+        border-color:#182954;
+        background:#f0f4ff;
+      }
+      .member-avatar{
+        width:38px;height:38px;
+        border-radius:50%;
+        background:#182954;
+        color:#fff;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:14px;
+        font-weight:700;
+        flex-shrink:0;
+      }
+      .member-name{
+        font-size:14px;
+        font-weight:600;
+        color:#333;
+        line-height:1.2;
+      }
     </style>
   </head>
   <body>
@@ -349,8 +392,15 @@
             <div class="info-block-label">Story ID</div>
             <div class="info-block-value" id="storyId">—</div>
           </div>
-          <input class="form-input" type="text" id="nameInput" placeholder="Your name" maxlength="20" />
-          <button class="btn btn-primary" onclick="joinSession()">Join Session</button>
+          <div class="section-label" style="margin-top:8px">Select Your Name</div>
+          <div class="member-grid" id="memberGrid"></div>
+          <div style="margin-top:14px;position:relative">
+            <div style="text-align:center;color:#ccc;font-size:12px;margin-bottom:10px">— or type manually —</div>
+            <div style="display:flex;gap:8px">
+              <input class="form-input" type="text" id="nameInput" placeholder="Your name" maxlength="20" style="margin-bottom:0" />
+              <button class="btn btn-primary" style="width:auto;flex-shrink:0;padding:0 20px" onclick="joinSession()">Join</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -461,6 +511,32 @@
 
       let activeRole = 'FE';
 
+      // ===== Team Members =====
+      const TEAM_MEMBERS = [
+        'Lisa A. Li',
+        'Harry Xin',
+        'Luna Fan',
+        'David Y. Wang',
+        'Damon Pang',
+        'Jacky Gong'
+      ];
+
+      function renderMemberGrid() {
+        var grid = document.getElementById('memberGrid');
+        grid.innerHTML = TEAM_MEMBERS.map(function(name) {
+          var initials = name.split(' ').map(function(w){ return w.charAt(0); }).join('').substring(0,2).toUpperCase();
+          return '<div class="member-btn" onclick="quickJoin(\'' + name.replace(/'/g, "\\'") + '\')">' +
+            '<div class="member-avatar">' + initials + '</div>' +
+            '<div class="member-name">' + name + '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      function quickJoin(name) {
+        document.getElementById('nameInput').value = name;
+        joinSession();
+      }
+
       // ===== URL 解析 =====
       function getSessionIdFromUrl() {
         var path = window.location.pathname;
@@ -514,6 +590,7 @@
             document.getElementById("storyIdDetail").textContent = data.storyId;
             document.getElementById("loadingSection").classList.add("hidden");
             document.getElementById("joinSection").classList.remove("hidden");
+            renderMemberGrid();
             refreshParticipants();
           })
           .catch(function() {
