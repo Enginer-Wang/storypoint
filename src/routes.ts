@@ -249,7 +249,8 @@ router.post(
       (roleStats.FE.average || 0) + (roleStats.BE.average || 0) + (roleStats.QA.average || 0)
     );
 
-    session.status = "completed";
+    // 注意：不再改变 session.status，也不写入数据库
+    // 只在前端 Save 时才持久化
 
     const result = {
       sessionId: session.id,
@@ -265,32 +266,35 @@ router.post(
       })),
     };
 
-    // 保存结果到数据库
-    await db.saveFinalResult(
-      sessionId,
-      session.storyId,
-      finalPoints,
-      JSON.stringify(result)
-    );
-
     res.json(result);
   }
 );
 
-// 更新最终点数和工作时间
+// 保存最终结果到数据库（Save 按钮触发）
 router.post(
-  "/api/session/:sessionId/update-final",
+  "/api/session/:sessionId/save",
   async (req: Request, res: Response) => {
     const { sessionId } = req.params;
-    const { finalPoints, hours, feFinal, beFinal, qaFinal } = req.body;
+    const { finalPoints, hours, feFinal, beFinal, qaFinal, resultData } = req.body;
 
     const session = sessions.get(sessionId);
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
     }
 
-    // 更新数据库中的最终点数和工作时间
-    await db.updateFinalResult(sessionId, finalPoints, hours, feFinal || 0, beFinal || 0, qaFinal || 0);
+    // 标记会话完成
+    session.status = "completed";
+
+    // 先创建 results 记录
+    await db.saveFinalResult(
+      sessionId,
+      session.storyId,
+      finalPoints || 0,
+      JSON.stringify(resultData || {})
+    );
+
+    // 再更新 final decision 值
+    await db.updateFinalResult(sessionId, finalPoints || 0, hours || 0, feFinal || 0, beFinal || 0, qaFinal || 0);
 
     res.json({
       success: true,
@@ -301,6 +305,20 @@ router.post(
       qaFinal,
       hours,
     });
+  }
+);
+
+// 重新打开会话（从 Results 返回 Session Active）
+router.post(
+  "/api/session/:sessionId/reopen",
+  async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+    session.status = "active";
+    res.json({ success: true });
   }
 );
 

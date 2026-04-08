@@ -496,6 +496,118 @@
       .h-rs-row-name { color: #666; }
       .h-rs-row-pts { font-weight: 700; color: #182954; }
       .h-rs-empty { padding: 10px 12px; text-align: center; color: #ccc; font-size: 12px; }
+
+      /* ===== Big Screen Mode ===== */
+      body.bigscreen {
+        font-size: 20px;
+      }
+      body.bigscreen .main {
+        max-width: 100%;
+        padding: 40px 48px;
+      }
+      body.bigscreen .navbar {
+        height: 72px;
+        padding: 0 40px;
+      }
+      body.bigscreen .navbar-brand {
+        font-size: 22px;
+      }
+      body.bigscreen .navbar-center {
+        font-size: 22px;
+      }
+      body.bigscreen .section-title {
+        font-size: 28px;
+      }
+      body.bigscreen .card {
+        padding: 36px 40px;
+      }
+      body.bigscreen .form-input {
+        height: 52px;
+        font-size: 18px;
+      }
+      body.bigscreen .btn {
+        height: 52px;
+        font-size: 18px;
+        padding: 0 32px;
+      }
+      body.bigscreen .qr-box img {
+        width: 280px;
+        height: 280px;
+      }
+      body.bigscreen .participant-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      body.bigscreen .p-card {
+        padding: 18px 20px;
+      }
+      body.bigscreen .p-avatar {
+        width: 52px; height: 52px;
+        font-size: 22px;
+      }
+      body.bigscreen .p-name {
+        font-size: 18px;
+      }
+      body.bigscreen .p-role,
+      body.bigscreen .p-scores {
+        font-size: 16px;
+      }
+      body.bigscreen .p-pts {
+        font-size: 26px;
+      }
+      body.bigscreen .result-table th {
+        font-size: 15px;
+        padding: 14px 18px;
+      }
+      body.bigscreen .result-table td {
+        font-size: 17px;
+        padding: 14px 18px;
+      }
+      body.bigscreen .stat-card {
+        padding: 28px;
+      }
+      body.bigscreen .stat-value {
+        font-size: 38px;
+      }
+      body.bigscreen .stat-label {
+        font-size: 14px;
+      }
+      body.bigscreen .rb-header {
+        font-size: 15px;
+        padding: 14px 18px;
+      }
+      body.bigscreen .rb-row {
+        font-size: 15px;
+        padding: 10px 18px;
+      }
+      body.bigscreen .decision-title {
+        font-size: 20px;
+      }
+      body.bigscreen .dr-card {
+        padding: 20px 16px;
+      }
+      body.bigscreen .dr-label {
+        font-size: 16px;
+      }
+      body.bigscreen .dr-input {
+        font-size: 28px;
+        width: 100px;
+      }
+      body.bigscreen .dr-total-value {
+        font-size: 42px;
+      }
+      body.bigscreen .dr-total-label {
+        font-size: 16px;
+      }
+      body.bigscreen .nav-btn {
+        height: 38px;
+        font-size: 15px;
+        padding: 0 18px;
+      }
+      body.bigscreen .actions-bar .btn {
+        height: 52px;
+        font-size: 18px;
+      }
     </style>
   </head>
   <body>
@@ -508,6 +620,11 @@
       </div>
       <div class="navbar-center" id="navStoryId"></div>
       <div class="navbar-actions">
+        <button class="nav-btn" id="bigscreenBtn" onclick="toggleBigScreen()" title="Big Screen Mode">
+          <svg id="bsIconExpand" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          <svg id="bsIconShrink" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          <span id="bsLabel">Big Screen</span>
+        </button>
         <button class="nav-btn" onclick="toggleHistory()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           History
@@ -619,6 +736,7 @@
     <script>
       let currentSession = null;
       let ws = null;
+      let lastResultData = null; // 缓存 Reveal Results 的数据
 
       function setStatus(text, active) {
         document.getElementById("statusText").textContent = text;
@@ -720,7 +838,11 @@
         if (!currentSession) return;
         fetch(`/api/session/${currentSession.sessionId}/finalize`, { method: "POST" })
           .then(r => r.json())
-          .then(data => { displayResults(data); })
+          .then(data => {
+            lastResultData = data;
+            if (updateInterval) { clearInterval(updateInterval); updateInterval = null; }
+            displayResults(data);
+          })
           .catch(() => alert("Failed to finalize"));
       }
 
@@ -826,14 +948,15 @@
         const qaFinal = parseInt(document.getElementById("drInput_QA")?.value) || 0;
         if (!fp && fp !== 0) { alert("Please enter final points"); return; }
 
-        fetch(`/api/session/${currentSession.sessionId}/update-final`, {
+        fetch(`/api/session/${currentSession.sessionId}/save`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ finalPoints: fp, hours: hrs || 0, feFinal, beFinal, qaFinal }),
+          body: JSON.stringify({ finalPoints: fp, hours: hrs || 0, feFinal, beFinal, qaFinal, resultData: lastResultData }),
         })
           .then(r => r.json())
           .then(() => {
             alert("Decision saved successfully!");
+            lastResultData = null;
             resetSession();
           })
           .catch(() => alert("Failed to save"));
@@ -841,9 +964,15 @@
 
       function backToSession() {
         if (!currentSession) return;
+        // 通知后端重新打开会话
+        fetch(`/api/session/${currentSession.sessionId}/reopen`, { method: "POST" });
         document.getElementById("resultsSection").classList.remove("active");
         document.getElementById("sessionSection").classList.remove("hidden");
         setStatus("Session Active", true);
+        // 恢复轮询
+        updateParticipants(currentSession.sessionId);
+        if (updateInterval) clearInterval(updateInterval);
+        updateInterval = setInterval(() => updateParticipants(currentSession.sessionId), 2000);
       }
 
       let updateInterval = null;
@@ -851,6 +980,7 @@
       function resetSession() {
         if (updateInterval) { clearInterval(updateInterval); updateInterval = null; }
         currentSession = null;
+        lastResultData = null;
         sessionStorage.removeItem('sp_session');
         sessionStorage.removeItem('sp_view');
         document.getElementById("setupSection").classList.remove("hidden");
@@ -978,6 +1108,19 @@
           })
           .catch(() => { body.innerHTML = '<div class="h-empty">Failed to load details.</div>'; });
       }
+
+      /* ===== Big Screen Mode ===== */
+      let isBigScreen = false;
+      function toggleBigScreen() {
+        isBigScreen = !isBigScreen;
+        document.body.classList.toggle('bigscreen', isBigScreen);
+        document.getElementById('bsIconExpand').style.display = isBigScreen ? 'none' : '';
+        document.getElementById('bsIconShrink').style.display = isBigScreen ? '' : 'none';
+        document.getElementById('bsLabel').textContent = isBigScreen ? 'Normal' : 'Big Screen';
+        sessionStorage.setItem('sp_bigscreen', isBigScreen ? '1' : '');
+      }
+      // 恢复大屏模式状态
+      if (sessionStorage.getItem('sp_bigscreen') === '1') { toggleBigScreen(); }
 
       /* ===== Page refresh persistence ===== */
       (function restoreSession() {
