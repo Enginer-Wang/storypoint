@@ -80,9 +80,14 @@ router.get("/api/session/:sessionId", (req: Request, res: Response) => {
     return res.status(404).json({ error: "Session not found" });
   }
 
-  const participants = Array.from(session.participants.values()).map((p) => ({
+  const participants = Array.from(session.participants.entries()).map(([pid, p]) => ({
+    participantId: pid,
     name: p.name,
     hasSubmitted: p.hasSubmitted,
+    fe: p.hasSubmitted ? p.fe : 0,
+    be: p.hasSubmitted ? p.be : 0,
+    qa: p.hasSubmitted ? p.qa : 0,
+    total: p.hasSubmitted ? p.totalPoints : 0,
   }));
 
   res.json({
@@ -172,6 +177,33 @@ router.post(
       qa: qaVal,
       total: participant.totalPoints,
     });
+  }
+);
+
+// 删除参与者的提交（重置为未提交状态）
+router.delete(
+  "/api/session/:sessionId/submission/:participantId",
+  async (req: Request, res: Response) => {
+    const { sessionId, participantId } = req.params;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    const participant = session.participants.get(participantId);
+    if (!participant) {
+      return res.status(404).json({ error: "Participant not found" });
+    }
+
+    // 重置提交状态
+    participant.fe = 0;
+    participant.be = 0;
+    participant.qa = 0;
+    participant.totalPoints = 0;
+    participant.hasSubmitted = false;
+
+    res.json({ success: true, participantId });
   }
 );
 

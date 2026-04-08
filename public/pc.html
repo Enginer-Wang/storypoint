@@ -12,12 +12,13 @@
         background: #f4f6f9;
         min-height: 100vh;
         color: #333;
+        font-size: 15px;
       }
 
       /* ===== 导航栏 ===== */
       .navbar {
         background: #182954;
-        height: 56px;
+        height: 60px;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -32,17 +33,31 @@
         align-items: center;
         gap: 10px;
         color: #fff;
-        font-size: 16px;
+        font-size: 17px;
         font-weight: 600;
         letter-spacing: .5px;
+        flex-shrink: 0;
       }
       .navbar-brand svg { flex-shrink: 0; }
+      .navbar-center {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        max-width: 300px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .navbar-status {
         display: flex;
         align-items: center;
         gap: 8px;
         color: rgba(255,255,255,.85);
-        font-size: 13px;
+        font-size: 14px;
       }
       .status-dot {
         width: 8px; height: 8px;
@@ -59,7 +74,7 @@
       }
 
       .section-title {
-        font-size: 20px;
+        font-size: 22px;
         font-weight: 600;
         color: #182954;
         margin-bottom: 20px;
@@ -81,18 +96,18 @@
         align-items: center;
       }
       .form-label {
-        font-size: 13px;
+        font-size: 14px;
         color: #666;
         margin-bottom: 6px;
         font-weight: 500;
       }
       .form-input {
         flex: 1;
-        height: 40px;
+        height: 44px;
         padding: 0 14px;
         border: 1px solid #d0d5dd;
         border-radius: 6px;
-        font-size: 14px;
+        font-size: 15px;
         color: #333;
         background: #fff;
         transition: border-color .2s;
@@ -109,11 +124,11 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
-        height: 40px;
+        height: 44px;
         padding: 0 24px;
         border: none;
         border-radius: 6px;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 600;
         cursor: pointer;
         transition: background .2s, box-shadow .2s;
@@ -176,14 +191,14 @@
         border: 1px solid #e5e7eb;
       }
       .p-avatar {
-        width: 36px; height: 36px;
+        width: 40px; height: 40px;
         border-radius: 50%;
         background: #182954;
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
+        font-size: 16px;
         font-weight: 600;
         flex-shrink: 0;
       }
@@ -191,15 +206,22 @@
       .p-avatar.be { background: #7c3aed; }
       .p-avatar.qa { background: #0d9488; }
       .p-info { flex: 1; min-width: 0; }
-      .p-name { font-size: 14px; font-weight: 600; color: #333; }
-      .p-role { font-size: 12px; color: #888; margin-top: 2px; }
+      .p-name { font-size: 15px; font-weight: 600; color: #333; }
+      .p-role { font-size: 13px; color: #888; margin-top: 2px; }
+      .p-scores { font-size: 13px; color: #182954; font-weight: 600; margin-top: 2px; }
       .p-pts {
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 700;
         color: #182954;
         min-width: 30px;
         text-align: right;
       }
+      .p-del-btn {
+        background: none; border: none; color: #ccc; cursor: pointer;
+        padding: 4px; border-radius: 4px; display: flex; align-items: center;
+        transition: color .2s, background .2s; margin-left: 8px;
+      }
+      .p-del-btn:hover { color: #dc2626; background: #fef2f2; }
 
       .empty-state {
         padding: 40px 0;
@@ -484,6 +506,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="3"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
         Story Point Estimation
       </div>
+      <div class="navbar-center" id="navStoryId"></div>
       <div class="navbar-actions">
         <button class="nav-btn" onclick="toggleHistory()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -614,17 +637,25 @@
           .then(r => r.json())
           .then(data => {
             currentSession = data;
-            document.getElementById("setupSection").classList.add("hidden");
-            document.getElementById("sessionSection").classList.remove("hidden");
-            document.getElementById("qrCode").src = data.qrCode;
-            document.getElementById("currentStory").textContent = storyId;
-            setStatus("Session Active", true);
-            connectWebSocket(data.sessionId);
-            updateParticipants(data.sessionId);
-            if (updateInterval) clearInterval(updateInterval);
-            updateInterval = setInterval(() => updateParticipants(data.sessionId), 2000);
+            sessionStorage.setItem('sp_session', JSON.stringify(data));
+            sessionStorage.setItem('sp_view', 'session');
+            showSessionView(data.sessionId, storyId, data.qrCode);
           })
           .catch(() => alert("Failed to create session"));
+      }
+
+      function showSessionView(sessionId, storyId, qrCodeSrc) {
+        document.getElementById("setupSection").classList.add("hidden");
+        document.getElementById("sessionSection").classList.remove("hidden");
+        document.getElementById("resultsSection").classList.remove("active");
+        if (qrCodeSrc) document.getElementById("qrCode").src = qrCodeSrc;
+        document.getElementById("currentStory").textContent = storyId;
+        document.getElementById("navStoryId").textContent = storyId;
+        setStatus("Session Active", true);
+        connectWebSocket(sessionId);
+        updateParticipants(sessionId);
+        if (updateInterval) clearInterval(updateInterval);
+        updateInterval = setInterval(() => updateParticipants(sessionId), 2000);
       }
 
       function connectWebSocket(sessionId) {
@@ -651,9 +682,19 @@
             list.innerHTML = "";
             data.participants.forEach(p => {
               const initials = p.name.charAt(0).toUpperCase();
-              const statusIcon = p.hasSubmitted
-                ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
-                : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+              let rightHtml = '';
+              if (p.hasSubmitted) {
+                rightHtml = `
+                  <div class="p-scores">FE:${p.fe} BE:${p.be} QA:${p.qa}</div>
+                  <div style="display:flex;align-items:center;gap:4px;margin-top:2px">
+                    <span class="p-pts">${p.total}</span>
+                    <button class="p-del-btn" title="Delete submission" onclick="deleteSubmission('${p.participantId}')">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                  </div>`;
+              } else {
+                rightHtml = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+              }
               list.innerHTML += `
                 <div class="p-card">
                   <div class="p-avatar">${initials}</div>
@@ -661,10 +702,18 @@
                     <div class="p-name">${p.name}</div>
                     <div class="p-role">${p.hasSubmitted ? 'Submitted' : 'Waiting...'}</div>
                   </div>
-                  <div class="p-pts">${statusIcon}</div>
+                  <div style="text-align:right">${rightHtml}</div>
                 </div>`;
             });
           });
+      }
+
+      function deleteSubmission(participantId) {
+        if (!currentSession) return;
+        fetch(`/api/session/${currentSession.sessionId}/submission/${participantId}`, { method: 'DELETE' })
+          .then(r => r.json())
+          .then(() => updateParticipants(currentSession.sessionId))
+          .catch(() => alert('Failed to delete'));
       }
 
       function finalizeSession() {
@@ -802,6 +851,8 @@
       function resetSession() {
         if (updateInterval) { clearInterval(updateInterval); updateInterval = null; }
         currentSession = null;
+        sessionStorage.removeItem('sp_session');
+        sessionStorage.removeItem('sp_view');
         document.getElementById("setupSection").classList.remove("hidden");
         document.getElementById("sessionSection").classList.add("hidden");
         document.getElementById("resultsSection").classList.remove("active");
@@ -809,6 +860,7 @@
         document.getElementById("participantsList").innerHTML = '';
         document.getElementById("finalPointsInput").value = "";
         document.getElementById("hoursInput").value = "";
+        document.getElementById("navStoryId").textContent = "";
         setStatus("Ready", false);
         if (ws) ws.close();
       }
@@ -926,6 +978,20 @@
           })
           .catch(() => { body.innerHTML = '<div class="h-empty">Failed to load details.</div>'; });
       }
+
+      /* ===== Page refresh persistence ===== */
+      (function restoreSession() {
+        const saved = sessionStorage.getItem('sp_session');
+        const view = sessionStorage.getItem('sp_view');
+        if (!saved || !view) return;
+        try {
+          const data = JSON.parse(saved);
+          currentSession = data;
+          if (view === 'session') {
+            showSessionView(data.sessionId, data.storyId, data.qrCode);
+          }
+        } catch(e) { sessionStorage.clear(); }
+      })();
     </script>
   </body>
 </html>
